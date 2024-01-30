@@ -744,7 +744,7 @@ loop:
             }
         }
     }
-    return resume_value(p, stack_empty, allow_comments, allow_trailing, allow_bad_utf8, allow_bad_utf16);
+    return resume_value(p, allow_comments, allow_trailing, allow_bad_utf8, allow_bad_utf16);
 }
 
 template<class Handler>
@@ -754,7 +754,6 @@ template<
     bool AllowBadUTF8_*/>
 const char*
 resume_value(const char* p,
-    std::integral_constant<bool, StackEmpty_> stack_empty,
     std::integral_constant<bool, AllowComments_> allow_comments,
     /*std::integral_constant<bool, AllowTrailing_>*/ bool allow_trailing,
     /*std::integral_constant<bool, AllowBadUTF8_>*/ bool allow_bad_utf8,
