@@ -1442,7 +1442,7 @@ public:
         TEST_GOOD_EXT("{\"command\":\"\\uDF3E\\uDEC2\"}", opt);  // Illegal leading surrogate
         TEST_GOOD_EXT("{\"command\":\"\\uD83D\\uD83D\"}", opt);  // Illegal trailing surrogate
         TEST_GOOD_EXT("{\"command\":\"\\uDF3E\\uD83D\"}", opt);  // Illegal leading & trailing surrogate
-        TEST_GOOD_EXT("{\"command\":\"\\uD83D\"}", opt);        // Half a surrogate (Valid leading surrogate)
+        TEST_GOOD_EXT("{\"command\":\"\\uD83D\"}", opt);         // Half a surrogate (Valid leading surrogate)
         TEST_GOOD_EXT("{\"command\":\"\\uDF3E\"}", opt);         // Half a surrogate (Illegal leading surrogate)
     }
 

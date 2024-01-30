@@ -753,6 +753,7 @@ template<
     bool AllowTrailing_,
     bool AllowBadUTF8_*/>
 const char*
+basic_parser<Handler>::
 resume_value(const char* p,
     std::integral_constant<bool, AllowComments_> allow_comments,
     /*std::integral_constant<bool, AllowTrailing_>*/ bool allow_trailing,
