@@ -564,7 +564,7 @@ do_doc2:
     switch(+opt_.allow_comments |
         (opt_.allow_trailing_commas << 1) |
         (opt_.allow_invalid_utf8 << 2) |
-        (opt_.allow_invalid_utf16 << 4))
+        (opt_.allow_invalid_utf16 << 3))
     {
     // no extensions
     default:
@@ -599,35 +599,35 @@ do_doc2:
         cs = parse_value(cs.begin(), stack_empty, std::true_type(), std::true_type(), std::true_type(), std::false_type());
         break;
     // allow_invalid_utf16
-    case 16:
+    case 8:
         cs = parse_value(cs.begin(), stack_empty, std::false_type(), std::false_type(), std::false_type(), std::true_type());
         break;
     // comments & allow_invalid_utf16
-    case 17:
+    case 9:
         cs = parse_value(cs.begin(), stack_empty, std::true_type(), std::false_type(), std::false_type(), std::true_type());
         break;
     // trailing & allow_invalid_utf16
-    case 18:
+    case 10:
         cs = parse_value(cs.begin(), stack_empty, std::false_type(), std::true_type(), std::false_type(), std::true_type());
         break;
     // skip validation & allow_invalid_utf16
-    case 19:
+    case 11:
         cs = parse_value(cs.begin(), stack_empty, std::false_type(), std::false_type(), std::true_type(), std::true_type());
         break;
     // comments & trailing & allow_invalid_utf16
-    case 20:
+    case 12:
         cs = parse_value(cs.begin(), stack_empty, std::true_type(), std::true_type(), std::false_type(), std::true_type());
         break;
     // comments & skip validation & allow_invalid_utf16
-    case 21:
+    case 13:
         cs = parse_value(cs.begin(), stack_empty, std::true_type(), std::false_type(), std::true_type(), std::true_type());
         break;
     // trailing & skip validation & allow_invalid_utf16
-    case 22:
+    case 14:
         cs = parse_value(cs.begin(), stack_empty, std::false_type(), std::true_type(), std::true_type(), std::true_type());
         break;
     // comments & trailing & skip validation & allow_invalid_utf16
-    case 23:
+    case 15:
         cs = parse_value(cs.begin(), stack_empty, std::true_type(), std::true_type(), std::true_type(), std::true_type());
         break;
     }
