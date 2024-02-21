@@ -1240,7 +1240,7 @@ parse_escaped(
     int digit;
     char c;
     cs.clip(temp.max_size());
-    bool bad_utf16 = false;
+    bool replaced_bad_utf16 = false;
     if(! stack_empty && ! st_.empty())
     {
         state st;
@@ -1390,17 +1390,22 @@ do_str3:
             }
             if(BOOST_JSON_UNLIKELY(u1 > 0xdbff))
             {
-                BOOST_STATIC_CONSTEXPR source_location loc
-                    = BOOST_CURRENT_LOCATION;
-                if (allow_bad_utf16)
+                // If it's an illegal leading surrogate and
+                // the parser does not allow it, return an error.
+                if(!allow_bad_utf16)
+                {
+                    BOOST_STATIC_CONSTEXPR source_location loc
+                        = BOOST_CURRENT_LOCATION;
+                    return fail(cs.begin(), error::illegal_leading_surrogate,
+                        &loc);
+                }
+                // Otherwise, append the Unicode replacement character and
+                // mark the surrogate as replaced.
+                else
                 {
                     unsigned cp = 0xFFFD; // Unicode replacement character
                     temp.append_utf8(cp);
-                    bad_utf16 = true;
-                }
-                else
-                {
-                    return fail(cs.begin(), error::illegal_leading_surrogate, &loc);
+                    replaced_bad_utf16 = true;
                 }
             }
             cs += 5;
@@ -1409,19 +1414,23 @@ do_str3:
             // but it's faster.
             if(BOOST_JSON_UNLIKELY(*cs != '\\'))
             {
-                BOOST_STATIC_CONSTEXPR source_location loc
-                    = BOOST_CURRENT_LOCATION;
-                if (!allow_bad_utf16)
+                // If the next character is not a backslash and
+                // the parser does not allow it, return a syntax error.
+                if(!allow_bad_utf16)
                 {
+                    BOOST_STATIC_CONSTEXPR source_location loc
+                        = BOOST_CURRENT_LOCATION;
                     return fail(cs.begin(), error::syntax, &loc);
                 }
+                // Otherwise, append the Unicode replacement character if
+                // the first code point is a valid leading surrogate.
                 else
                 {
-                    if (bad_utf16 == false)
+                    if(replaced_bad_utf16 == false)
                     {
                         unsigned cp = 0xFFFD; // Unicode replacement character
                         temp.append_utf8(cp);
-                        bad_utf16 = true;
+                        replaced_bad_utf16 = true;
                     }
                     break;
                 }
@@ -1459,37 +1468,51 @@ do_str3:
             unsigned const u2 =
                 (d1 << 12) + (d2 << 8) +
                 (d3 << 4) + d4;
-            // valid trailing surrogates are [DC00, DFFF]
-            if(BOOST_JSON_UNLIKELY(
-                u2 < 0xdc00 || u2 > 0xdfff || (bad_utf16 == true)))
+            // Append the second Unicode replacement character if
+            // the first code point is an illegal leading surrogate
+            if(replaced_bad_utf16 == true)
             {
-                BOOST_STATIC_CONSTEXPR source_location loc
-                    = BOOST_CURRENT_LOCATION;
-                if (allow_bad_utf16)
+                unsigned cp = 0xFFFD; // Unicode replacement character
+                temp.append_utf8(cp);
+            }
+            // Check if the second code point is a valid trailing surrogate.
+            // Valid trailing surrogates are [DC00, DFFF]
+            else if(BOOST_JSON_UNLIKELY(
+                        u2 < 0xdc00 || u2 > 0xdfff))
+            {
+                // If not valid and the parser does not allow it, return an error.
+                if(!allow_bad_utf16)
                 {
-                    unsigned cp = 0xFFFD; // Unicode replacement character
-                    if (bad_utf16 == false)
-                    {
-                        temp.append_utf8(cp);
-                    }
-                    temp.append_utf8(cp);
-                    bad_utf16 = true;
+                    BOOST_STATIC_CONSTEXPR source_location loc
+                        = BOOST_CURRENT_LOCATION;
+                    return fail(cs.begin(), error::illegal_trailing_surrogate,
+                        &loc);
                 }
+                // Otherwise, append the replacement character twice and
+                // mark the surrogate as replaced.
                 else
                 {
-                    return fail(cs.begin(), error::illegal_trailing_surrogate, &loc);
+                    unsigned cp = 0xFFFD; // Unicode replacement character
+                    temp.append_utf8(cp);
+                    temp.append_utf8(cp);
+                    replaced_bad_utf16 = true;
                 }
             }
             cs += 4;
-            if (!bad_utf16)
+            // If the invalid surrogate pair has been replaced with
+            // Unicode replacement characters, break out of the switch.
+            if(replaced_bad_utf16)
             {
-                unsigned cp =
+                break;
+            }
+            // Calculate the Unicode code point from the surrogate pair and
+            // append the UTF-8 representation.
+            unsigned cp =
                 ((u1 - 0xd800) << 10) +
                 ((u2 - 0xdc00)) +
                     0x10000;
-                // utf-16 surrogate pair
-                temp.append_utf8(cp);
-            }
+            // utf-16 surrogate pair
+            temp.append_utf8(cp);
             break;
         }
         // flush
@@ -1577,17 +1600,21 @@ do_str7:
         }
         if(BOOST_JSON_UNLIKELY(u1_ > 0xdbff))
         {
-            BOOST_STATIC_CONSTEXPR source_location loc
-                = BOOST_CURRENT_LOCATION;
-            if (allow_bad_utf16)
+            // If it's an illegal leading surrogate and
+            // the parser does not allow it, return an error.
+            if(!allow_bad_utf16)
+            {
+                BOOST_STATIC_CONSTEXPR source_location loc
+                    = BOOST_CURRENT_LOCATION;
+                return fail(cs.begin(), error::illegal_leading_surrogate, &loc);
+            }
+            // Otherwise, append the Unicode replacement character and
+            // mark the surrogate as replaced.
+            else
             {
                 unsigned cp = 0xFFFD; // Unicode replacement character
                 temp.append_utf8(cp);
-                bad_utf16 = true;
-            }
-            else
-            {
-                return fail(cs.begin(), error::illegal_leading_surrogate, &loc);
+                replaced_bad_utf16 = true;                
             }
         }
 do_sur1:
@@ -1595,19 +1622,23 @@ do_sur1:
             return maybe_suspend(cs.begin(), state::sur1, total);
         if(BOOST_JSON_UNLIKELY(*cs != '\\'))
         {
-            BOOST_STATIC_CONSTEXPR source_location loc
-                = BOOST_CURRENT_LOCATION;
-            if (!allow_bad_utf16)
+            // If the next character is not a backslash and
+            // the parser does not allow it, return a syntax error.
+            if(!allow_bad_utf16)
             {
+                BOOST_STATIC_CONSTEXPR source_location loc
+                    = BOOST_CURRENT_LOCATION;
                 return fail(cs.begin(), error::syntax, &loc);
             }
+            // Otherwise, append the Unicode replacement character if
+            // the first code point is a valid leading surrogate.
             else
             {
-                if (bad_utf16 == false)
+                if(replaced_bad_utf16 == false)
                 {
                     unsigned cp = 0xFFFD; // Unicode replacement character
                     temp.append_utf8(cp);
-                    bad_utf16 = true;
+                    replaced_bad_utf16 = true;
                 }
                 break;
             }
@@ -1671,43 +1702,57 @@ do_sur6:
         }
         ++cs;
         u2_ += digit;
-        if(BOOST_JSON_UNLIKELY(
-            u2_ < 0xdc00 || u2_ > 0xdfff || (bad_utf16 == true)))
+        // Append the second Unicode replacement character if
+        // the first code point is an illegal leading surrogate
+        if(replaced_bad_utf16 == true)
         {
-            BOOST_STATIC_CONSTEXPR source_location loc
-                = BOOST_CURRENT_LOCATION;
-            if (allow_bad_utf16)
-            {
-                unsigned cp = 0xFFFD; // Unicode replacement character
-                if (bad_utf16 == false)
-                {
-                    temp.append_utf8(cp);
-                }
-                temp.append_utf8(cp);
-                bad_utf16 = true;
-            }
-            else
-            {
-                return fail(cs.begin(), error::illegal_trailing_surrogate, &loc);
-            }
-        }
-        if (!bad_utf16)
-        {
-            unsigned cp =
-                ((u1_ - 0xd800) << 10) +
-                ((u2_ - 0xdc00)) +
-                0x10000;
-            BOOST_ASSERT(temp.empty());
-            // utf-16 surrogate pair
+            unsigned cp = 0xFFFD; // Unicode replacement character
             temp.append_utf8(cp);
         }
+        // Check if the second code point is a valid trailing surrogate.
+        // Valid trailing surrogates are [DC00, DFFF]
+        else if(BOOST_JSON_UNLIKELY(
+                    u2_ < 0xdc00 || u2_ > 0xdfff))
+        {
+            // If not valid and the parser does not allow it, return an error.
+            if(!allow_bad_utf16)
+            {
+                BOOST_STATIC_CONSTEXPR source_location loc
+                    = BOOST_CURRENT_LOCATION;
+                return fail(cs.begin(), error::illegal_trailing_surrogate, &loc);
+            }
+            // Otherwise, append the replacement character twice and
+            // mark the surrogate as replaced.
+            else
+            {
+                unsigned cp = 0xFFFD; // Unicode replacement character
+                temp.append_utf8(cp);
+                temp.append_utf8(cp);
+                replaced_bad_utf16 = true;                
+            }
+        }
+        // If the invalid surrogate pair has been replaced with
+        // Unicode replacement characters, break out of the switch.
+        if(replaced_bad_utf16)
+        {
+            break;
+        }
+        // Calculate the Unicode code point from the surrogate pair and
+        // append the UTF-8 representation.
+        unsigned cp =
+            ((u1_ - 0xd800) << 10) +
+            ((u2_ - 0xdc00)) +
+                0x10000;
+        BOOST_ASSERT(temp.empty());
+        // utf-16 surrogate pair
+        temp.append_utf8(cp);
     }
 do_str2:
     // KRYSTIAN TODO: we can append the characters
     // all at once instead of one at a time
     for(;;)
     {
-        if(BOOST_JSON_UNLIKELY(! cs || temp.capacity() == 0 ))
+        if(BOOST_JSON_UNLIKELY(! cs))
         {
             // flush
             if(BOOST_JSON_LIKELY(! temp.empty()))
