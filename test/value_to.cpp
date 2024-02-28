@@ -28,6 +28,10 @@
 # include <variant>
 #endif
 
+#ifndef BOOST_NO_CXX17_HDR_FILESYSTEM
+# include <filesystem>
+#endif // BOOST_NO_CXX17_HDR_FILESYSTEM
+
 namespace value_to_test_ns
 {
 
@@ -36,7 +40,7 @@ struct T1 { };
 //----------------------------------------------------------
 struct T2 { };
 
-boost::json::result<T2>
+boost::system::result<T2>
 tag_invoke(
     boost::json::try_value_to_tag<T2>,
     boost::json::value const& jv)
@@ -57,7 +61,7 @@ tag_invoke(
 {
     boost::json::string const* str = jv.if_string();
     if( !str )
-        throw boost::json::system_error(
+        throw boost::system::system_error(
             make_error_code(boost::json::error::not_string));
     if ( *str != "T3" )
         throw std::invalid_argument("");
@@ -153,7 +157,7 @@ struct custom_context
 struct T9
 { };
 
-boost::json::result<T9>
+boost::system::result<T9>
 tag_invoke(
     boost::json::try_value_to_tag<T9>,
     boost::json::value const& jv,
@@ -533,6 +537,21 @@ public:
 
     template< class... Context >
     static
+    void testPath( Context const& ... ctx )
+    {
+        ignore_unused( ctx... );
+#ifndef BOOST_NO_CXX17_HDR_FILESYSTEM
+        using Paths = std::vector<std::filesystem::path>;
+        value jv = value{"from/here", "to/there", "", "c:/" , "..", "../"};
+        auto paths = value_to<Paths>( jv, ctx... );
+        BOOST_TEST(
+            paths == (Paths{
+                "from/here", "to/there", "", "c:/" , "..", "../"}) );
+#endif // BOOST_NO_CXX17_HDR_FILESYSTEM
+    }
+
+    template< class... Context >
+    static
     void
     testNonThrowing( Context const& ... ctx )
     {
@@ -562,7 +581,7 @@ public:
         {
             BOOST_TEST_THROWS(
                 value_to<::value_to_test_ns::T2>( value(), ctx... ),
-                system_error);
+                system::system_error);
         }
         // nonthrowing overload falls back to throwing customization
         {
@@ -730,7 +749,7 @@ public:
         BOOST_TEST_THROWS(
             value_to<value_to_test_ns::T9>(
                 value(), value_to_test_ns::custom_context() ),
-            system_error);
+            system::system_error);
     }
 
     struct run_templated_tests
@@ -750,6 +769,7 @@ public:
 #ifndef BOOST_NO_CXX17_HDR_VARIANT
             testVariant< std::variant, std::monostate > ( Context()... );
 #endif // BOOST_NO_CXX17_HDR_VARIANT
+            testPath( Context()... );
             testNonThrowing( Context()... );
             testUserConversion( Context()... );
         }

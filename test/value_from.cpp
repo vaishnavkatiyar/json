@@ -26,6 +26,10 @@
 #include <map>
 #include <unordered_map>
 
+#ifndef BOOST_NO_CXX17_HDR_FILESYSTEM
+# include <filesystem>
+#endif // BOOST_NO_CXX17_HDR_FILESYSTEM
+
 //----------------------------------------------------------
 
 namespace value_from_test_ns
@@ -131,7 +135,7 @@ void
 tag_invoke(
     ::boost::json::value_from_tag,
     ::boost::json::value& jv,
-    ::boost::json::error_code& ec,
+    ::boost::system::error_code& ec,
     T8 const& t8)
 {
     if( t8.error )
@@ -159,7 +163,7 @@ tag_invoke(
     if( t9.num == 0 )
         throw std::invalid_argument("");
     if( t9.num < 0 )
-        throw ::boost::json::system_error(
+        throw ::boost::system::system_error(
             make_error_code(::boost::json::error::syntax));
 
     jv = "T9";
@@ -535,6 +539,20 @@ public:
 #endif // BOOST_NO_CXX17_HDR_VARIANT
     }
 
+    template< class... Context >
+    static
+    void testPath( Context const& ... ctx )
+    {
+        ignore_unused( ctx... );
+#ifndef BOOST_NO_CXX17_HDR_FILESYSTEM
+        std::vector<std::filesystem::path> paths{
+            "from/here", "to/there", "", "c:/" , "..", "../"};
+        value jv = value_from( paths, ctx... );
+        BOOST_TEST(
+            jv == (value{"from/here", "to/there", "", "c:/" , "..", "../"}) );
+#endif // BOOST_NO_CXX17_HDR_FILESYSTEM
+    }
+
     void
     testContext()
     {
@@ -598,6 +616,7 @@ public:
             testDescribed( Context()... );
             testOptional( Context()... );
             testVariant( Context()... );
+            testPath( Context()... );
         }
     };
 
